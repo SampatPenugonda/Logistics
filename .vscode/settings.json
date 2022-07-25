@@ -1,0 +1,24 @@
+{
+  "files.exclude": {
+    "**/.git": true,
+    "**/.svn": true,
+    "**/.hg": true,
+    "**/CVS": true,
+    "**/.DS_Store": true,
+    "**/Thumbs.db": true,
+    "**/.config": true,
+    "**/.env*": true,
+    "**/.idea": true,
+    "**/.ionide": true,
+    "**/.netlify": true,
+    "**/.vscode": true,
+    "**/*.config.js": true,
+    "**/bin": false,
+    "**/Compiled": true,
+    "**/node_modules": true,
+    "**/obj": false,
+    "**/yarn.lock": true,
+    "*DotSettings.user": true
+  },
+  "explorerExclude.backup": null
+}
