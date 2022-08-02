@@ -9,6 +9,7 @@ namespace Logistics.Utills
     public class CityConstants
     {
         public const string CollectionName = "cities";
-        public const string UnderScoreId = "_id"; 
+        public const string UnderScoreId = "_id";
+        public const string Location = "position";
     }
 }

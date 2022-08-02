@@ -26,8 +26,9 @@ namespace Logistics.API
         {
             this._mongoDbClient = mongoDbClient;
             this.mongoDatabase = mongoDbClient.GetDatabase(SharedConstants.Database);
-            this.citiesCollection = this.mongoDatabase.GetCollection<BsonDocument>(CityConstants.CollectionName).WithWriteConcern(WriteConcern.Acknowledged).WithReadPreference(ReadPreference.SecondaryPreferred);
-            _logger = logger;
+            var databaseWithWriteConcern = this.mongoDatabase.WithWriteConcern(WriteConcern.WMajority).WithReadConcern(ReadConcern.Majority);
+            this.citiesCollection = databaseWithWriteConcern.GetCollection<BsonDocument>(CityConstants.CollectionName);
+            this._logger = logger;
         }
         public async Task<IEnumerable<City>> GetAll()
         {
@@ -77,43 +78,40 @@ namespace Logistics.API
             return null;
         }
 
-        public async Task<dynamic> GetNeighbouringCities(string cityName, long count)
+        public async Task<List<City>> GetNeighbouringCities(string cityName, long count)
         {
-            var collection = this.mongoDatabase.GetCollection<City>(CityConstants.CollectionName);
+            var filter = Builders<BsonDocument>.Filter.Eq(CityConstants.UnderScoreId, cityName);
+            List<City> neighBourCities = new List<City>();
 
-            var cities = await collection.Find(city => city.Name == cityName).ToListAsync();
+            var cities = await this.citiesCollection.Find(filter).ToListAsync();
 
             if (cities.Any())
             {
-                var city = cities.First();
+                var city = this.FetchCity(cities.First());
                 var point = new GeoJsonPoint<GeoJson2DGeographicCoordinates>(new GeoJson2DGeographicCoordinates(city.Location[0], city.Location[1]));
 
-                var filter = Builders<City>.Filter.Near(x => x.Location, point, 100000000000, 0);
-                var nearbyCities = await collection.Find(filter).ToListAsync();
+                var filterNearCities = Builders<BsonDocument>.Filter.Near(CityConstants.Location, point, 100000000000, 0);
+                var nearbyCities = await this.citiesCollection.Find(filter).ToListAsync();
 
                 var selectedCities = nearbyCities.Take((int)count).ToList();
-
-                return new
+                foreach (var cityDto in selectedCities)
                 {
-                    Neighbors = selectedCities.Select(x => new 
-                    {
-                        Name = x.Name,
-                        Country = x.Country,
-                        Location = new double[] { x.Location[0], x.Location[1] }
-                    })
-                };
+                    var cityModel = BsonSerializer.Deserialize<City>(cityDto);
+                    cityModel.Location = new double[] { cityModel.Location[0], cityModel.Location[1] };
+                    neighBourCities.Add(cityModel);
+                }
             }
 
-            return new
-            {
-                Neighbors = new List<City> { }
-            };
-
-
+            return neighBourCities;
         }
         public string GetLastError()
         {
             return lastError;
+        }
+        private City FetchCity(BsonDocument cityDto)
+        {
+            var cityModel = BsonSerializer.Deserialize<City>(cityDto);
+            return cityModel;
         }
     }
 }

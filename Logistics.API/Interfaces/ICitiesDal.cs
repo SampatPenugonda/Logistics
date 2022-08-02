@@ -11,7 +11,7 @@ namespace Logistics.API
     {
         Task<IEnumerable<City>> GetAll();
         Task<City> GetCityByName(string cityName);
-        Task<dynamic> GetNeighbouringCities(string cityName, long count);
+        Task<List<City>> GetNeighbouringCities(string cityName, long count);
         string GetLastError();
     }
 }
