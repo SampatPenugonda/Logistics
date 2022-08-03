@@ -10,5 +10,6 @@ namespace Logistics.Utills
     {
         public const string InProcess = "in process";
         public const string Delivered = "delivered";
+        
     }
 }

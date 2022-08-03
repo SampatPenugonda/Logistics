@@ -297,7 +297,7 @@ namespace Logistics.API
 
             
 
-            var filter2 = Builders<Plane>.Filter.Eq(PlaneConstants.Callsign, id);
+            var filter2 = Builders<BsonDocument>.Filter.Eq(PlaneConstants.Callsign, id);
 
             var update = Builders<BsonDocument>.Update
                 .Set(PlaneConstants.CurrentLocation, newLocation)
