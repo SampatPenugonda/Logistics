@@ -10,38 +10,42 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Logistics.API
+namespace Logistics.API.DAL
 {
     public class CargoDal : ICargoDal
     {
         private readonly IMongoClient _mongoDbClient;
-        private readonly IMongoCollection<Cargo> cargoCollection;
+        private readonly IMongoCollection<BsonDocument> cargoCollection;
         private readonly IMongoDatabase _mongoDatabase;
         private readonly ILogger<CargoDal> _logger;
         private string lastError = string.Empty;
         public CargoDal(IMongoClient mongoClient, ILogger<CargoDal> logger)
         {
-            this._mongoDbClient = mongoClient;
-            this._mongoDatabase = mongoClient.GetDatabase(SharedConstants.Database);
-            this.cargoCollection = this._mongoDatabase.GetCollection<Cargo>(CargoConstants.CollectionName).WithWriteConcern(WriteConcern.Acknowledged).WithReadPreference(ReadPreference.SecondaryPreferred);
-            this._logger = logger;
+            _mongoDbClient = mongoClient;
+            _mongoDatabase = this._mongoDbClient.GetDatabase(SharedConstants.Database);
+            cargoCollection = this._mongoDatabase.GetCollection<BsonDocument>(CargoConstants.CollectionName).WithWriteConcern(WriteConcern.Acknowledged).WithReadPreference(ReadPreference.SecondaryPreferred);
+            _logger = logger;
         }
 
         public async Task<Cargo> AddCargo(string location, string destination)
         {
-            
-            var cargo = new Cargo
+            var cargo = new BsonDocument()
             {
-                Received = DateTime.UtcNow,
-                Location = location,
-                Destination = destination,
-                Status = CargoStatus.InProcess,
-                SchemaVersion = CargoConstants.schemaVersion
+                { CargoConstants.Received, DateTime.UtcNow },
+                { CargoConstants.Location, location },
+                { CargoConstants.Destination, destination },
+                { CargoConstants.Status, CargoConstants.InProgress },
+                { CargoConstants.schemaVersion, CargoConstants.schemaVersionValue }
             };
+            try
+            {
+                await cargoCollection.InsertOneAsync(cargo);
+            }
+            catch (Exception ex)
+            {
 
-
-            await this.cargoCollection.InsertOneAsync(cargo);
-            return cargo;
+            }
+            return this.FetchCargo(cargo);
         }
 
         public async Task<bool> UpdateCargo(string id)
@@ -49,11 +53,11 @@ namespace Logistics.API
             var result = false;
             try
             {
-                var filter = Builders<Cargo>.Filter.Eq(cargo => cargo.Id, id);
-                var update = Builders<Cargo>.Update
-                    .Set(cargo => cargo.Status, CargoStatus.Delivered);
+                var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, id);
+                var update = Builders<BsonDocument>.Update
+                    .Set(CargoConstants.Status, CargoStatus.Delivered);
 
-                var updateCargoResult = await this.cargoCollection.UpdateOneAsync(filter, update);
+                var updateCargoResult = await cargoCollection.UpdateOneAsync(filter, update);
                 result = updateCargoResult.IsAcknowledged && updateCargoResult.ModifiedCount == 1;
             }
             catch (MongoException ex)
@@ -74,18 +78,18 @@ namespace Logistics.API
             try
             {
                 // Will use _id index
-                var cursor = await this.cargoCollection.FindAsync(filter);
+                var cursor = await cargoCollection.FindAsync(filter);
                 var cargos = cursor.ToList();
                 if (cargos.Any())
                 {
                     var cargoModel = cargos.FirstOrDefault();
-                    return cargoModel;
+                    return this.FetchCargo(cargoModel);
                 }
             }
             catch (MongoException ex)
             {
                 lastError = $"Failed to fetch the cargo by the id: {id}.Exception: {ex.ToString()}";
-                this._logger.LogError(lastError);
+                _logger.LogError(lastError);
             }
 
             return null;
@@ -97,20 +101,18 @@ namespace Logistics.API
             var result = false;
             try
             {
+                var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, id);
+                var update = Builders<BsonDocument>.Update
+                    .Set(CargoConstants.Courier, callsign);
 
-                var filter = Builders<Cargo>.Filter.Eq(cargo => cargo.Id, id);
-                var update = Builders<Cargo>.Update
-                    .Set(cargo => cargo.Courier, callsign);
-
-                var updatedCargoResult = await this.cargoCollection.UpdateOneAsync(filter, update);
+                var updatedCargoResult = await cargoCollection.UpdateOneAsync(filter, update);
 
                 result = updatedCargoResult.IsAcknowledged;
-
             }
             catch (MongoException ex)
             {
                 lastError = $"Failed to assign courier : {callsign} to the cargo : {id}.Exception: {ex.ToString()}";
-                this._logger.LogError(lastError);
+                _logger.LogError(lastError);
                 result = false;
             }
             return result;
@@ -121,16 +123,17 @@ namespace Logistics.API
         {
             try
             {
-                var filter = Builders<Cargo>.Filter.Eq(cargo => cargo.Id, id);
-                var update = Builders<Cargo>.Update
-                    .Set(cargo => cargo.Courier, null);
+                var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, id);
+                var update = Builders<BsonDocument>.Update
+                             .Unset(CargoConstants.Courier);
 
-                return await cargoCollection.FindOneAndUpdateAsync(filter, update);
+                 var updResult = await cargoCollection.FindOneAndUpdateAsync(filter, update);
+                 return this.FetchCargo(updResult);
             }
             catch (MongoException ex)
             {
                 lastError = $"Failed to assign courier : {id} to the cargo : {id}.Exception: {ex.ToString()}";
-                this._logger.LogError(lastError);
+                _logger.LogError(lastError);
             }
             return null;
         }
@@ -139,13 +142,12 @@ namespace Logistics.API
         {
             try
             {
-                var filter = Builders<Cargo>.Filter.Eq(cargo => cargo.Id, id);
-                var update = Builders<Cargo>.Update
-                    .Set(cargo => cargo.Location, location);
+                var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, id);
+                var update = Builders<BsonDocument>.Update
+                    .Set(CargoConstants.Location, location);
 
-                var result = await this.cargoCollection.FindOneAndUpdateAsync(filter, update);
-
-                return result;
+                var updResult = await cargoCollection.FindOneAndUpdateAsync(filter, update);
+                return this.FetchCargo(updResult);
             }
             catch (MongoException ex)
             {
@@ -158,31 +160,36 @@ namespace Logistics.API
         public async Task<List<Cargo>> GetCargos(string location)
         {
             var cargos = new ConcurrentBag<Cargo>();
-            var builder = Builders<Cargo>.Filter;
-            var filter = builder.Eq("status", CargoStatus.InProcess) &
-                         builder.Eq("location", location);
+            var builder = Builders<BsonDocument>.Filter;
+            var filter = builder.Eq(CargoConstants.Status, CargoStatus.InProcess) &
+                         builder.Eq(CargoConstants.Location, location);
 
             try
             {
                 // Created index with status, location and courier -> db.cargos.createIndex({status:1,location:1})
-                var cursor = await this.cargoCollection.FindAsync(filter);
+                var cursor = await cargoCollection.FindAsync(filter);
                 var cargoDtos = cursor.ToList();
 
                 // Parallelizing the serialization to make it faster.
                 Parallel.ForEach(cargoDtos, cargoDto =>
                 {
-                    var cargoModel =cargoDto;
+                    var cargoModel = this.FetchCargo(cargoDto);
                     cargos.Add(cargoModel);
                 });
             }
             catch (MongoException ex)
             {
                 lastError = $"Failed to fetch the cargoes at the location: {location}.Exception: {ex.ToString()}";
-                this._logger.LogError(lastError);
+                _logger.LogError(lastError);
             }
 
             return cargos.OrderBy(x => x.Id).ToList();
-            
+
+        }
+        private Cargo FetchCargo(BsonDocument cargoDto)
+        {
+            var cargoModel = BsonSerializer.Deserialize<Cargo>(cargoDto);
+            return cargoModel;
         }
     }
 }

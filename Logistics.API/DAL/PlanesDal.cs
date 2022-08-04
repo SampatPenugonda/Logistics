@@ -1,5 +1,4 @@
-﻿
-using Logistics.Models;
+﻿using Logistics.Models;
 using Logistics.Utills;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
@@ -11,39 +10,38 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace Logistics.API
+namespace Logistics.API.DAL
 {
     public class PlanesDal : IPlanesDal
     {
         private readonly IMongoClient _mongoDbClient;
-        private readonly IMongoCollection<Plane> planesCollection;
+        private readonly IMongoCollection<BsonDocument> planesCollection;
         private readonly IMongoDatabase _mongoDatabase;
         private readonly ILogger _logger;
         private string lastError = string.Empty;
         private bool isTimeSet = false;
         public PlanesDal(IMongoClient mongoClient, ILogger<PlanesDal> logger)
         {
-            this._mongoDbClient = mongoClient;
-            this._mongoDatabase = mongoClient.GetDatabase(SharedConstants.Database);
-            //var databaseWithWriteConcern = this._mongoDatabase.WithWriteConcern(WriteConcern.WMajority).WithReadConcern(ReadConcern.Majority);
-            this.planesCollection = this._mongoDatabase.GetCollection<Plane>(PlaneConstants.CollectionName).WithWriteConcern(WriteConcern.Acknowledged).WithReadPreference(ReadPreference.SecondaryPreferred);
-            this._logger = logger;
+            _mongoDbClient = mongoClient;
+            _mongoDatabase = mongoClient.GetDatabase(SharedConstants.Database);
+            var databaseWithWriteConcern = this._mongoDatabase.WithWriteConcern(WriteConcern.WMajority).WithReadConcern(ReadConcern.Majority);
+            this.planesCollection = databaseWithWriteConcern.GetCollection<BsonDocument>(PlaneConstants.CollectionName); 
+            _logger = logger;
         }
 
         public async Task<Plane> GetPlane(string callSign)
         {
             var filter = new BsonDocument();
-
             filter[SharedConstants.UnderScoreId] = callSign;
             try
             {
                 // Will use _id index
-                var cursor = await this.planesCollection.FindAsync(filter);
+                var cursor = await planesCollection.FindAsync(filter);
                 var planes = cursor.ToList();
-               // return Pla
+                // return Pla
                 if (planes.Any())
                 {
-                    var planeModel = planes.FirstOrDefault();
+                    var planeModel = this.FetchPlane(planes.FirstOrDefault());
                     return planeModel;
                 }
 
@@ -51,7 +49,7 @@ namespace Logistics.API
             catch (MongoException ex)
             {
                 lastError = $"Failed to fetch the plane by id: {callSign} Exception: {ex.ToString()}";
-                this._logger.LogError(lastError);
+                _logger.LogError(lastError);
             }
 
             return null;
@@ -59,39 +57,33 @@ namespace Logistics.API
 
         public async Task<IEnumerable<Plane>> GetPlanes()
         {
-            var sort = Builders<Plane>.Sort.Ascending(PlaneConstants.UnderScoreId);
-            var findOptions = new FindOptions<Plane, BsonDocument>()
-            {
-                // Sort is to display the city names in order in the front end
-                Sort = sort
-            };
-            // Will use _id index
-            var planeDtosCursor = await this.planesCollection.FindAsync(new BsonDocument(), findOptions);
+            var planeDtosCursor = await planesCollection.FindAsync(new BsonDocument());
             var planeDtos = planeDtosCursor.ToList();
             var planes = new ConcurrentBag<Plane>();
             // Parallelizing the serialization to make it faster.
             Parallel.ForEach(planeDtos, planeDto =>
             {
-                var planeModel = BsonSerializer.Deserialize<Plane>(planeDto); 
+                var planeModel = this.FetchPlane(planeDto);
                 planes.Add(planeModel);
             });
 
             return planes.ToList();
         }
 
-         
+
 
         public async Task<Plane> MovePlaneLocation(string id, string location, int heading)
         {
             // var point = new GeoJson2DCoordinates(double.Parse(location.Split(',')[0]), double.Parse(location.Split(',')[1]));
-
-            var plane = await this.planesCollection.Find(plane => plane.Callsign == id).FirstOrDefaultAsync();
+            var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, id);
+            var planeResult = await planesCollection.Find(filter).FirstOrDefaultAsync();
+            var plane = this.FetchPlane(planeResult);
 
             double travelledDistance = DistanceTo(location.Split(",").Select(x => double.Parse(x)).ToArray(), id);
             double distanceTravelledSinceLastMaintenance = 0;
             bool maintenanceRequired = false;
             double totalSecond = 0;
-            if (plane.PlaneStartedAt != default(DateTime))
+            if (plane.PlaneStartedAt != default)
             {
                 totalSecond = CalculateTime(plane.PlaneStartedAt);
             }
@@ -104,36 +96,33 @@ namespace Logistics.API
 
 
             //var travelledDistance = DistanceTo(location.Split(",").Select(x => double.Parse(x)).ToArray(), plane.CurrentLocation);
-            var filter = Builders<Plane>.Filter.Eq(plane => plane.Callsign, id);
+            
 
-            var update = Builders<Plane>.Update
-               .Set(plane => plane.CurrentLocation, location.Split(",").Select(x => double.Parse(x)).ToArray())
-               .Set(plane => plane.Heading, heading)
-               .Set(plane => plane.DistanceTravelledSinceLastMaintenance, distanceTravelledSinceLastMaintenance)
-               .Set(plane => plane.MaintenanceRequired, maintenanceRequired)
-               .Set(plane => plane.TotalDistanceTravelled, plane.TotalDistanceTravelled + travelledDistance)
-                .Set(plane => plane.TravelledinSeconds, totalSecond);
+            var update = Builders<BsonDocument>.Update
+               .Set(PlaneConstants.CurrentLocation, location.Split(",").Select(x => double.Parse(x)).ToArray())
+               .Set(PlaneConstants.Heading, heading)
+               .Set(PlaneConstants.distanceTravelledFromLastMaintainence , distanceTravelledSinceLastMaintenance)
+               .Set(PlaneConstants.MaintainenceRequired, maintenanceRequired)
+               .Set(PlaneConstants.totalDistanceTravelled, plane.TotalDistanceTravelled + travelledDistance)
+               .Set(PlaneConstants.travelledInSeconds, totalSecond);
 
-            if (plane.PlaneStartedAt == default(DateTime) && !isTimeSet)
+            if (plane.PlaneStartedAt == default && !isTimeSet)
             {
-                update = Builders<Plane>.Update
-           .Set(plane => plane.CurrentLocation, location.Split(",").Select(x => double.Parse(x)).ToArray())
-           .Set(plane => plane.Heading, heading)
-           .Set(plane => plane.DistanceTravelledSinceLastMaintenance, distanceTravelledSinceLastMaintenance)
-           .Set(plane => plane.MaintenanceRequired, maintenanceRequired)
-           .Set(plane => plane.TotalDistanceTravelled, plane.TotalDistanceTravelled + travelledDistance)
-           .Set(plane => plane.PlaneStartedAt, DateTime.UtcNow)
-          .Set(plane => plane.TravelledinSeconds, totalSecond);
+                update = Builders<BsonDocument>.Update
+               .Set(PlaneConstants.CurrentLocation, location.Split(",").Select(x => double.Parse(x)).ToArray())
+               .Set(PlaneConstants.Heading, heading)
+               .Set(PlaneConstants.distanceTravelledFromLastMaintainence, distanceTravelledSinceLastMaintenance)
+               .Set(PlaneConstants.MaintainenceRequired, maintenanceRequired)
+               .Set(PlaneConstants.totalDistanceTravelled, plane.TotalDistanceTravelled + travelledDistance)
+               .Set(PlaneConstants.travelledInSeconds, totalSecond)
+                .Set(PlaneConstants.planeStartedAt, DateTime.UtcNow);
 
                 isTimeSet = true;
             }
 
-            var result = await this.planesCollection.FindOneAndUpdateAsync(filter, update);
-            return result;
+            var result = await planesCollection.FindOneAndUpdateAsync(filter, update);
+            return this.FetchPlane(result);
         }
-
-
-       
 
         private double DistanceTo(double[] currentLocation, string Id)
         {
@@ -155,7 +144,7 @@ namespace Logistics.API
             } },
             { "distanceField", "distance" },
             { "query",
-    new BsonDocument("_id", "CARGO0") },
+    new BsonDocument(SharedConstants.UnderScoreId, Id) },
             { "distanceMultiplier", 0.001 },
             { "spherical", true }
         }),
@@ -179,6 +168,8 @@ namespace Logistics.API
 
         }
 
+
+
         private double CalculateTime(DateTime planeStartedAt)
         {
             var time = planeStartedAt.ToUniversalTime();
@@ -186,16 +177,16 @@ namespace Logistics.API
             return (currentTime - time).TotalSeconds;
         }
 
-        public  async Task<bool> AddDestination(string id, string city)
+        public async Task<bool> AddDestination(string id, string city)
         {
             var result = false;
             try
             {
-                var filter = Builders<Plane>.Filter.Eq(plane => plane.Callsign, id);
-                var update = Builders<Plane>.Update
-                .Set(plane => plane.Route, new string[] { city });
+                var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, id);
+                var update = Builders<BsonDocument>.Update
+                .Set(PlaneConstants.Route, new string[] { city });
 
-                var  updatedPlaneResult = await this.planesCollection.UpdateOneAsync(filter, update);
+                var updatedPlaneResult = await planesCollection.UpdateOneAsync(filter, update);
                 result = updatedPlaneResult.IsAcknowledged;
             }
             catch (MongoException ex)
@@ -217,18 +208,16 @@ namespace Logistics.API
             var result = false;
             try
             {
-                var filter = Builders<Plane>.Filter.Eq(plane => plane.Callsign, id);
-                var update = Builders<Plane>.Update
-                    .AddToSet(plane => plane.Route, city);
-
-                var updatedPlaneResult = await this.planesCollection.UpdateOneAsync(filter, update);
+                var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, id);
+                var update = Builders<BsonDocument>.Update
+                    .AddToSet(PlaneConstants.Route, city);
+                var updatedPlaneResult = await planesCollection.UpdateOneAsync(filter, update);
                 result = updatedPlaneResult.IsAcknowledged;
-
             }
             catch (MongoException ex)
             {
                 lastError = $"Failed to replace plane route : {city} for the plane: {id}.Exception: {ex.ToString()}";
-               // this.logger.LogError(lastError);
+                // this.logger.LogError(lastError);
                 result = false;
             }
             return result;
@@ -239,12 +228,13 @@ namespace Logistics.API
             var result = false;
             try
             {
-                var filter = Builders<Plane>.Filter.Eq(plane => plane.Callsign, id);
-                
+                var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, id);
+
                 //var collection = _database.GetCollection<Plane>(PlaneConstants.CollectionName);
 
                 var filterPlaneId = Builders<Plane>.Filter.Eq(plane => plane.Callsign, id);
-                var plane = await this.planesCollection.Find(filterPlaneId).FirstOrDefaultAsync();
+                var planeResult = await planesCollection.Find(filter).FirstOrDefaultAsync();
+                var plane = this.FetchPlane(planeResult);
 
                 var previouslyLanded = string.Empty;
 
@@ -253,9 +243,9 @@ namespace Logistics.API
                     previouslyLanded = plane.Route.First();
                 }
 
-                var update = Builders<Plane>.Update
-                                            .Set(plane => plane.PreviousLanded, previouslyLanded)
-                                            .PopFirst(p => p.Route);
+                var update = Builders<BsonDocument>.Update
+                                            .Set(PlaneConstants.PreviousLanded, previouslyLanded)
+                                            .PopFirst(PlaneConstants.Route);
 
                 var updResult = await planesCollection.UpdateOneAsync(filter, update);
                 result = updResult.IsAcknowledged;
@@ -263,7 +253,7 @@ namespace Logistics.API
             catch (MongoException ex)
             {
                 lastError = $"Failed to remove the first route  for the plane: {id}.Exception: {ex.ToString()}";
-               // this.logger.LogError(lastError);
+                // this.logger.LogError(lastError);
                 result = false;
             }
             return result;
@@ -271,39 +261,33 @@ namespace Logistics.API
 
         public async Task<Plane> UpdateLandPlaneLocation(string id, string location, int heading, string city)
         {
-            var plane = await this.planesCollection.Find(plane => plane.Callsign == id).FirstOrDefaultAsync();
+            var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, id);
+            var planeResult = await planesCollection.Find(filter).FirstOrDefaultAsync();
+            var plane = this.FetchPlane(planeResult);
             var previousLocation = plane.CurrentLocation;
             var newLocation = location.Split(",").Select(x => double.Parse(x)).ToArray();
 
-            //double travelledDistance = DistanceTo(newLocation, id);
-            //double distanceTravelledSinceLastMaintenance = 0;
+            
             bool maintenanceRequired = false;
             double totalSecond = CalculateTime(plane.PlaneStartedAt);
 
-            //if (!plane.MaintenanceRequired)
-            //{
-            //    //distanceTravelledSinceLastMaintenance = plane.DistanceTravelledSinceLastMaintenance + travelledDistance;
-            //    //maintenanceRequired = distanceTravelledSinceLastMaintenance > 50000;
-            //}
-
-            var filter = Builders<Plane>.Filter.Eq(plane => plane.Callsign, id);
-
-            var update = Builders<Plane>.Update
-                .Set(plane => plane.CurrentLocation, newLocation)
-                .Set(plane => plane.Heading, heading)
-                .Set(plane => plane.Landed, city)
-                //.Set(plane => plane.DistanceTravelledSinceLastMaintenance, distanceTravelledSinceLastMaintenance)
-                .Set(plane => plane.MaintenanceRequired, maintenanceRequired)
-                //.Set(plane => plane.TotalDistanceTravelled, plane.TotalDistanceTravelled + travelledDistance)
-                .Set(plane => plane.TravelledinSeconds, totalSecond);
             
+            var update = Builders<BsonDocument>.Update
+               .Set(PlaneConstants.CurrentLocation, location.Split(",").Select(x => double.Parse(x)).ToArray())
+               .Set(PlaneConstants.Heading, heading)
+               .Set(PlaneConstants.MaintainenceRequired, maintenanceRequired)
+               .Set(PlaneConstants.travelledInSeconds, totalSecond);
+            var result = await planesCollection.FindOneAndUpdateAsync(filter, update);
 
-
-            var result = await this.planesCollection.FindOneAndUpdateAsync(filter, update);
-
-            return result;
+            return this.FetchPlane(result);
+        }
+        private Plane FetchPlane(BsonDocument planeDto)
+        {
+            var planeModel = BsonSerializer.Deserialize<Plane>(planeDto);
+            planeModel.Heading = Convert.ToDouble(string.Format("{0:N2}", planeDto.GetValue(PlaneConstants.Heading).ToDouble()));
+            return planeModel;
         }
     }
-    
+
 
 }

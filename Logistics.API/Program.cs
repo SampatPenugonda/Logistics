@@ -1,6 +1,8 @@
-﻿using Logistics.API;
+﻿using ExceptionHandling.Middlewares;
+using Logistics.API;
 using Logistics.API.ChangeStream;
 using Logistics.API.ConfigureIndexes;
+using Logistics.API.DAL;
 using MongoDB.Driver;
 
 IConfiguration configuration = new ConfigurationBuilder()
@@ -19,12 +21,10 @@ builder.Services.AddSingleton<IMongoClient>(x => { return mongoClient; });
 builder.Services.AddSingleton<ICitiesDal, CitiesDal>();
 builder.Services.AddSingleton<IPlanesDal, PlanesDal>();
 builder.Services.AddSingleton<ICargoDal,CargoDal>();
+builder.Services.AddSingleton<ChangeStream, ChangeStream>();
 // Configuration Injection
 builder.Services.AddSingleton<IConfiguration>(x => configuration);
-
-
-// Initiate ChangeStream
-ChangeStream.Monitor(new MongoClient(configuration["MongoDb-Connection-String"])).ConfigureAwait(false);
+var changeStreamServices = builder.Services.BuildServiceProvider().GetService<ChangeStream>();
 
 var app = builder.Build();
 // Create Indexes Once after the application host got initialized. 
@@ -40,9 +40,9 @@ if (app.Environment.IsDevelopment())
 
 app.UseDefaultFiles();
 app.UseStaticFiles();
-
 app.UseAuthorization();
-
 app.MapControllers();
+app.UseMiddleware<ExceptionHandlingMiddleware>();
 
+new Thread(() => changeStreamServices.Init()).Start();
 app.Run();
