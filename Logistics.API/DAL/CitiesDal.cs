@@ -76,7 +76,7 @@ namespace Logistics.API.DAL
             return null;
         }
 
-        public async Task<dynamic> GetNeighbouringCities(string cityName, long count)
+        public async Task<List<City>> GetNeighbouringCities(string cityName, long count)
         {
             List<City> neighBourCities = new List<City>();
             var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, cityName);

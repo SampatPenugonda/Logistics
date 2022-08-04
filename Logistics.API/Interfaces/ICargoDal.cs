@@ -13,8 +13,8 @@ namespace Logistics.API
         Task<bool> UpdateCargo(string id);
         Task<Cargo> GetCargoById(string id);
         Task<bool> UpdateCargo(string id, string callsign);
-        Task<bool> UnloadCargo(string id);
-        Task<bool> UpdateCargoLocation(string id, string location);
+        Task<Cargo> UnloadCargo(string id);
+        Task<Cargo> UpdateCargoLocation(string id, string location);
         Task<List<Cargo>> GetCargos(string location);
     }
 }
