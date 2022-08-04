@@ -13,7 +13,7 @@ namespace Logistics.Models
 		// public GeoJson2DCoordinates CurrentLocation { get; set; }
 		public double[] CurrentLocation { get; set; }
 		[BsonElement("heading")]
-		public double Heading { get; set; }
+		public	double Heading { get; set; }
 		[BsonElement("route")]
 		public string[] Route { get; set; }
 		[BsonElement("landed")]

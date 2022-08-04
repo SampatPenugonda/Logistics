@@ -17,9 +17,9 @@
             v-bind:style="{top: ((90-city.location[1]) / 1.8) + '%', right: ((180 - city.location[0])/3.6) + '%'}" class="city"></span>
 
             <!-- Using CSS to map to image and UNICODE glyph to display-->
-            <span v-for="plane in planes"   v-on:click="planeClicked(plane)"
-             v-bind:style="{transform: 'rotate('+(plane.heading-90)+'deg)', top: ((90-plane.currentLocation[1]) / 1.8) + '%', right: ((180 - plane.currentLocation[0])/3.6) + '%'}"
-             class="plane">&#128518;</span>
+            <span v-for="plane in planes" v-on:click="planeClicked(plane)"
+                  v-bind:style="{transform: 'rotate('+(plane.heading-90)+'deg)', top: ((90-plane.currentLocation[1]) / 1.8) + '%', right: ((180 - plane.currentLocation[0])/3.6) + '%'}"
+                  class="plane">&#x2708;</span>
 
     </div>
     <!-- Controls -->
