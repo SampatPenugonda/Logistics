@@ -1,5 +1,6 @@
 
 using Logistics.API.DAL;
+using Logistics.API.Extensions;
 using Logistics.Models;
 using Logistics.Utills;
 using MongoDB.Bson;
@@ -144,7 +145,7 @@ namespace Logistics.API.ChangeStream
             {
                 var planehistory = new BsonDocument()
             {
-                { planeHistoryConstants.Route , new BsonArray{ document.Route.ToBsonDocument() } },
+                { planeHistoryConstants.Route ,  ToBsonDocumentArray.ToBsonDocumentArrayExt(document.Route) },
                 { planeHistoryConstants.Callsign, document.Callsign },
                 { planeHistoryConstants.LandedOn, DateTime.UtcNow },
                 { planeHistoryConstants.Landed , document.Landed },
