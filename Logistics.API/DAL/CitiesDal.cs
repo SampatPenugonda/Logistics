@@ -30,22 +30,30 @@ namespace Logistics.API.DAL
         }
         public async Task<IEnumerable<City>> GetAll()
         {
-            var sort = Builders<BsonDocument>.Sort.Ascending(CityConstants.UnderScoreId);
-            var findOptions = new FindOptions<BsonDocument, BsonDocument>()
-            {
-                // Sort is to display the city names in order in the front end
-                Sort = sort
-            };
-            // Will use _id index
-            var cityDtosCursor = await citiesCollection.FindAsync(new BsonDocument(), findOptions);
-            var cityDtos = cityDtosCursor.ToList();
             var cities = new ConcurrentBag<City>();
-            // Parallelizing the serialization to make it faster.
-            Parallel.ForEach(cityDtos, cityDto =>
+            try
             {
-                var cityModel = BsonSerializer.Deserialize<City>(cityDto);
-                cities.Add(cityModel);
-            });
+                var sort = Builders<BsonDocument>.Sort.Ascending(CityConstants.UnderScoreId);
+                var findOptions = new FindOptions<BsonDocument, BsonDocument>()
+                {
+                    // Sort is to display the city names in order in the front end
+                    Sort = sort
+                };
+                // Will use _id index
+                var cityDtosCursor = await citiesCollection.FindAsync(new BsonDocument(), findOptions);
+                var cityDtos = cityDtosCursor.ToList();
+
+                // Parallelizing the serialization to make it faster.
+                Parallel.ForEach(cityDtos, cityDto =>
+                {
+                    var cityModel = BsonSerializer.Deserialize<City>(cityDto);
+                    cities.Add(cityModel);
+                });
+            }
+            catch(MongoException mex)
+            {
+                _logger.LogError($"Failed to fetch the cities Exception: {mex.ToString()}");
+            }
 
             return cities.ToList();
         }
@@ -79,27 +87,36 @@ namespace Logistics.API.DAL
         public async Task<List<City>> GetNeighbouringCities(string cityName, long count)
         {
             List<City> neighBourCities = new List<City>();
-            var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, cityName);
-            var cities = await this.citiesCollection.Find(filter).ToListAsync();
-
-            if (cities.Any())
+            try
             {
-                var city = this.FetchCity(cities.First());
-                var point = new GeoJsonPoint<GeoJson2DGeographicCoordinates>(new GeoJson2DGeographicCoordinates(city.Location[0], city.Location[1]));
+                var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, cityName);
+                var cities = await this.citiesCollection.Find(filter).ToListAsync();
 
-                var nearFilter = Builders<BsonDocument>.Filter.Near(CityConstants.location, point, 100000000000, 0);
-                var nearbyCities = await this.citiesCollection.Find(nearFilter).ToListAsync();
-
-                var selectedCities = nearbyCities.Take((int)count).ToList();
-
-                foreach (var cityDto in selectedCities)
+                if (cities.Any())
                 {
-                    var cityModel = BsonSerializer.Deserialize<City>(cityDto);
-                    cityModel.Location = new double[] { cityModel.Location[0], cityModel.Location[1] };
-                    neighBourCities.Add(cityModel);
+                    var city = this.FetchCity(cities.First());
+                    var point = new GeoJsonPoint<GeoJson2DGeographicCoordinates>(new GeoJson2DGeographicCoordinates(city.Location[0], city.Location[1]));
+
+                    var nearFilter = Builders<BsonDocument>.Filter.Near(CityConstants.location, point, 100000000000, 0);
+                    var nearbyCities = await this.citiesCollection.Find(nearFilter).ToListAsync();
+
+                    var selectedCities = nearbyCities.Take((int)count).ToList();
+
+                    foreach (var cityDto in selectedCities)
+                    {
+                        var cityModel = BsonSerializer.Deserialize<City>(cityDto);
+                        cityModel.Location = new double[] { cityModel.Location[0], cityModel.Location[1] };
+                        neighBourCities.Add(cityModel);
+                    }
                 }
+                return neighBourCities;
             }
-            return neighBourCities;
+            catch (MongoException mex)
+            {
+                lastError = $"Failed to fetch the neighboring cities: {cityName} Exception: {mex.ToString()}";
+                _logger.LogError(lastError);
+                throw;
+            }
         }
         public string GetLastError()
         {
@@ -107,8 +124,17 @@ namespace Logistics.API.DAL
         }
         private City FetchCity(BsonDocument planeDto)
         {
-            var cityModel = BsonSerializer.Deserialize<City>(planeDto);
-            return cityModel;
+            try
+            {
+                var cityModel = BsonSerializer.Deserialize<City>(planeDto);
+                return cityModel;
+            }
+            catch (Exception ex)
+            {
+                lastError = $"Failed to fetch the city from bson document {ex.ToString()}";
+                _logger.LogError(lastError);
+                throw;
+            }
         }
     }
 }

@@ -37,16 +37,6 @@ public class ExceptionHandlingMiddleware
         };
         switch (exception)
         {
-            case ApplicationException ex:
-                if (ex.Message.Contains("Invalid token"))
-                {
-                    response.StatusCode = (int)HttpStatusCode.Forbidden;
-                    errorResponse.Message = ex.Message;
-                    break;
-                }
-                response.StatusCode = (int)HttpStatusCode.BadRequest;
-                errorResponse.Message = ex.Message;
-                break;
             case MongoException ex:
                 response.StatusCode = (int)HttpStatusCode.NotFound;
                 errorResponse.Message = ex.Message;

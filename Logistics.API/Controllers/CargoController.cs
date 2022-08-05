@@ -34,8 +34,15 @@ namespace Logistics.API.Controllers
         [HttpPost("cargo/{location}/to/{destination}")]
         public async Task<IActionResult> AddCargo(string location, string destination)
         {
-            var result = await _cargoDAL.AddCargo(location, destination);
-            return new OkObjectResult(result);
+            try
+            {
+                var result = await _cargoDAL.AddCargo(location, destination);
+                return new OkObjectResult(result);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, this._cargoDAL.GetLastError());
+            }
         }
         /// <summary>
         /// Modify the cargo details with Cargo Id. 
@@ -45,8 +52,15 @@ namespace Logistics.API.Controllers
         [HttpPut("cargo/{id}/delivered")]
         public async Task<bool> UpdateCargo(string id)
         {
-            var cargo = await _cargoDAL.UpdateCargo(id);
-            return cargo;
+            try
+            {
+                var cargo = await _cargoDAL.UpdateCargo(id);
+                return cargo;
+            }
+            catch(Exception)
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -56,10 +70,17 @@ namespace Logistics.API.Controllers
         /// <param name="callsign"></param>
         /// <returns></returns>
         [HttpPut("cargo/{id}/courier/{callsign}")]
-        public async Task<bool> UpdateCargo(string id, string callsign)
+        public async Task<IActionResult> UpdateCargo(string id, string callsign)
         {
-            var result = await _cargoDAL.UpdateCargo(id, callsign);
-            return result;
+            try
+            {
+                var result = await _cargoDAL.UpdateCargo(id, callsign);
+                return new OkObjectResult(result);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, this._cargoDAL.GetLastError());
+            }
         }
 
         /// <summary>
@@ -70,8 +91,15 @@ namespace Logistics.API.Controllers
         [HttpDelete("cargo/{id}/courier")]
         public async Task<IActionResult> UnloadCargo(string id)
         {
-            var result = await _cargoDAL.UnloadCargo(id);
-            return new OkObjectResult(result);
+            try
+            {
+                var result = await _cargoDAL.UnloadCargo(id);
+                return new OkObjectResult(result);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, this._cargoDAL.GetLastError());
+            }
         }
         /// <summary>
         /// Update the Cargo Location based on the Id, Location. 
@@ -82,8 +110,15 @@ namespace Logistics.API.Controllers
         [HttpPut("cargo/{id}/location/{location}")]
         public async Task<IActionResult> UpdateCargoLocation(string id, string location)
         {
-            var result = await _cargoDAL.UpdateCargoLocation(id, location);
-            return new OkObjectResult(result);
+            try
+            {
+                var result = await _cargoDAL.UpdateCargoLocation(id, location);
+                return new OkObjectResult(result);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, this._cargoDAL.GetLastError());
+            }
         }
         /// <summary>
         /// Retunrs all cargos based on the location. 
@@ -93,8 +128,15 @@ namespace Logistics.API.Controllers
         [HttpGet("cargo/location/{location}")]
         public async Task<ActionResult> GetCargos(string location)
         {
-            var result = await _cargoDAL.GetCargos(location);
-            return new OkObjectResult(result);
+            try
+            {
+                var result = await _cargoDAL.GetCargos(location);
+                return new OkObjectResult(result);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, this._cargoDAL.GetLastError());
+            }
         }
     }
 }

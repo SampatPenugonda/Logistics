@@ -11,6 +11,6 @@ namespace Logistics.Utills
         public const string CollectionName = "cities";
         public const string UnderScoreId = "_id";
         public const string CityName = "name";
-        public const string location = "location";
+        public const string location = "position";
     }
 }

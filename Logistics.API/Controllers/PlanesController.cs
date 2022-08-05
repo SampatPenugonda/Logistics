@@ -24,14 +24,22 @@ namespace Logistics.API.Controllers
         [HttpGet("planes")]
         public async Task<IActionResult> GetCities()
         {
-            var planes = await _planeDAL.GetPlanes();
-            if (planes.ToList().Count > 0)
+            try
             {
-                return new OkObjectResult(planes);
+                var planes = await _planeDAL.GetPlanes();
+                if (planes.ToList().Count > 0)
+                {
+                    return new OkObjectResult(planes);
+                }
+                else
+                {
+                    return StatusCode(404);
+                }
             }
-            else
+            catch (Exception)
             {
-                return StatusCode(404);
+
+                return StatusCode(500, this._planeDAL.GetLastError());
             }
         }
         /// <summary>
@@ -42,8 +50,16 @@ namespace Logistics.API.Controllers
         [HttpGet("planes/{callsign}")]
         public async Task<IActionResult> GetPlane(string callsign)
         {
-            var plane = await _planeDAL.GetPlane(callsign);
-            return plane != null ? new OkObjectResult(plane) : StatusCode(404);
+            try
+            {
+                var plane = await _planeDAL.GetPlane(callsign);
+                return plane != null ? new OkObjectResult(plane) : StatusCode(404);
+            }
+            catch (Exception)
+            {
+
+                return StatusCode(500, this._planeDAL.GetLastError());
+            }
         }
 
         /// <summary>
@@ -56,12 +72,20 @@ namespace Logistics.API.Controllers
         [HttpPut("planes/{id}/location/{location}/{heading}")]
         public async Task<IActionResult> MovePlaneLocation(string id, string location, int heading)
         {
-            var result = await _planeDAL.MovePlaneLocation(id, location, heading);
-            if (result == null)
+            try
             {
-                return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                var result = await _planeDAL.MovePlaneLocation(id, location, heading);
+                if (result == null)
+                {
+                    return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                }
+                return new JsonResult(result);
             }
-            return new JsonResult(result);
+            catch (Exception)
+            {
+
+                return StatusCode(500, this._planeDAL.GetLastError());
+            }
 
         }
         /// <summary>
@@ -75,44 +99,58 @@ namespace Logistics.API.Controllers
         [HttpPut("planes/{id}/location/{location}/{heading}/{city}")]
         public async Task<IActionResult> UpdateLandPlaneLocation(string id, [FromRoute] string location, int heading, string city)
         {
-            if (string.IsNullOrEmpty(location))
+            try
             {
-                return new BadRequestObjectResult("Location information is invalid");
-            }
-            var locations = location.Split(',');
-            if (locations.Count() != 2)
-            {
-                return new BadRequestObjectResult("Location information is invalid");
-            }
-            var cityObtained = await this._citiesDAL.GetCityByName(city);
-            if (cityObtained == null)
-            {
-                return new BadRequestObjectResult("Found invalid city");
-            }
+                if (string.IsNullOrEmpty(location))
+                {
+                    return new BadRequestObjectResult("Location information is invalid");
+                }
+                var locations = location.Split(',');
+                if (locations.Count() != 2)
+                {
+                    return new BadRequestObjectResult("Location information is invalid");
+                }
+                var cityObtained = await this._citiesDAL.GetCityByName(city);
+                if (cityObtained == null)
+                {
+                    return new BadRequestObjectResult("Found invalid city");
+                }
 
-            var result = await _planeDAL.UpdateLandPlaneLocation(id, location, heading, city);
-            if (result == null)
-            {
-                return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                var result = await _planeDAL.UpdateLandPlaneLocation(id, location, heading, city);
+                if (result == null)
+                {
+                    return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                }
+                return new JsonResult(result);
             }
-            return new JsonResult(result);
+            catch (Exception)
+            {
+                return StatusCode(500, this._planeDAL.GetLastError());
+            }
         }
 
         [HttpPut("planes/{id}/route/{city}")]
         public async Task<IActionResult> AddDestination(string id, string city)
         {
-            var cityObtained = await this._citiesDAL.GetCityByName(city);
-            if (cityObtained == null)
+            try
             {
-                return new BadRequestObjectResult("Found invalid city");
-            }
+                var cityObtained = await this._citiesDAL.GetCityByName(city);
+                if (cityObtained == null)
+                {
+                    return new BadRequestObjectResult("Found invalid city");
+                }
 
-            var result = await this._planeDAL.AddDestination(id, city);
-            if (!result)
-            {
-                return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                var result = await this._planeDAL.AddDestination(id, city);
+                if (!result)
+                {
+                    return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                }
+                return new JsonResult(result);
             }
-            return new JsonResult(result);
+            catch (Exception)
+            {
+                return StatusCode(500, this._planeDAL.GetLastError());
+            }
 
         }
         /// <summary>
@@ -124,19 +162,26 @@ namespace Logistics.API.Controllers
         [HttpPost("planes/{id}/route/{city}")]
         public async Task<IActionResult> UpdateDestination(string id, string city)
         {
-            var cityObtained = await this._citiesDAL.GetCityByName(city);
-            if (cityObtained == null)
+            try
             {
-                return new BadRequestObjectResult("Found invalid city");
-            }
+                var cityObtained = await this._citiesDAL.GetCityByName(city);
+                if (cityObtained == null)
+                {
+                    return new BadRequestObjectResult("Found invalid city");
+                }
 
-            var result = await this._planeDAL.UpdateDestination(id, city);
-            if (!result)
+                var result = await this._planeDAL.UpdateDestination(id, city);
+                if (!result)
+                {
+                    return new BadRequestObjectResult(this._citiesDAL.GetLastError());
+                }
+
+                return new JsonResult(result);
+            }
+            catch (Exception)
             {
-                return new BadRequestObjectResult(this._citiesDAL.GetLastError());
+                return StatusCode(500, this._planeDAL.GetLastError());
             }
-
-            return new JsonResult(result);
 
         }
         /// <summary>
@@ -147,13 +192,21 @@ namespace Logistics.API.Controllers
         [HttpDelete("planes/{id}/route/destination")]
         public async Task<IActionResult> RemoveDestination(string id)
         {
-            var result = await this._planeDAL.RemoveDestination(id);
-            if (!result)
+            try
+
             {
-                return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                var result = await this._planeDAL.RemoveDestination(id);
+                if (!result)
+                {
+                    return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                }
+                return new JsonResult(result);
             }
 
-            return new JsonResult(result);
+            catch (Exception)
+            {
+                return StatusCode(500, this._planeDAL.GetLastError());
+            }
         }
 
     }

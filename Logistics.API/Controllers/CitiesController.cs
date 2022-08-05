@@ -20,10 +20,17 @@ namespace Logistics.API.Controllers
         /// </summary>
         /// <returns></returns>
         [HttpGet("cities")]
-        public async Task<List<City>> GetCities()
+        public async Task<IActionResult> GetCities()
         {
-            var cities = await _citiesDAL.GetAll();
-            return cities.ToList();
+            try
+            {
+                var cities = await _citiesDAL.GetAll();
+                return new OkObjectResult(cities.ToList());
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, this._citiesDAL.GetLastError());
+            }
         }
         /// <summary>
         /// Get City Based on the name
@@ -33,8 +40,15 @@ namespace Logistics.API.Controllers
         [HttpGet("cities/{name}")]
         public async Task<dynamic> GetCity(string name)
         {
-            var results = await _citiesDAL.GetCityByName(name);
-            return new OkObjectResult(results);
+            try
+            {
+                var results = await _citiesDAL.GetCityByName(name);
+                return new OkObjectResult(results);
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, this._citiesDAL.GetLastError());
+            }
         }
         /// <summary>
         /// Get Neighbouring Cities based on the Count & City Name
@@ -45,8 +59,15 @@ namespace Logistics.API.Controllers
         [HttpGet("cities/{name}/neighbors/{count}")]
         public async Task<IActionResult> GetNeighbouringCities(string name, long count)
         {
-            var results = await _citiesDAL.GetNeighbouringCities(name, count);
-            return new OkObjectResult(results);
+            try
+            {
+                var results = await _citiesDAL.GetNeighbouringCities(name, count);
+                return new OkObjectResult(new { neighbors = results });
+            }
+            catch (Exception)
+            {
+                return StatusCode(500, this._citiesDAL.GetLastError());
+            }
         }
 
 
