@@ -1,34 +1,39 @@
-# Logistics
-**Latest Modifications**
-Removed the dependencies of POJO Classes at DAL Layer. 
-Improved the usage of constants across the solutions.
-Enhanced the exception handling throughout the application. 
-Maintained the Read/Write Preferences for collection[s]
-Added PlaneHistory through changeStream
+# Logistics Solutions <br />
 
-**Indexes**
+# Latest Modifications <br />
+1. Removed the dependencies of POJO Classes at DAL Layer. 
+2. Improved the usage of constants across the solutions.
+3. Enhanced the exception handling throughout the application. 
+4. Maintained the Read/Write Preferences for collection[s]
+5. Added PlaneHistory with schema version to handle collections  for multiple versions through changeStream
+
+
+# Indexes
 1. Created Indexes on Collections City & Plane for GeoSphere 2D columns. 
 2. Index creation will be handled in the program during application start-up 
 
-**Developed & Tested the solution using MongoDb Atlas. **
+# Developed & Tested the solution using MongoDb Atlas.
 
-**New MongoDB Featues : $geoNear **
+# New MongoDB Featues : $geoNear , $Near
 
 $**geoNear** is used to calculate the distance travelled in planeDal.cs & Another way of distance calculation is implemented in Change Stream. 
 
-**Schema Changes**
-1. Added Schema Version for Cargo Collection to maintain the Cargo Schema Changes, Since Cargo Collection is highly used. 
+$Near is used to calculate Neighbor cities.
+
+# Schema Changes 
+1. Added Schema Version for Cargo Collection, Plane History collection to maintain the Schema Changes, Since Cargo , plane history Collection is highly used. 
+
 2. Added Few Fields in to Plane Collection to maintain distanceTravelled , TimeTravelledinSeconds & Maintainance Required Flags. 
 3. Above fields will be added / modified using the changeStream. 
 
-**Logging** 
+# Logging
 1. Default logging is applied through out the code. 
 2. Logging the custom message with various Id's 
 
-**Testing** 
+# Testing
 Tested the solution with 200 planes & 2000+ cities as mentioned. 
 
-**Scripts** : 
+# Scripts: 
 
 1. Scripts to generate 2000+ cities 
 
@@ -38,6 +43,6 @@ db.worldcities.aggregate([{ $match: { population: { $gt: '1000' } } }, { $sort: 
 
 first = { $sample: { size: 200} } second = { $group: { _id: null, planes : { $push : { currentLocation : "$position" }}}} unwind = { $unwind : {path: "$planes", includeArrayIndex: "id" }} format = {$project : { _id : {$concat : ["CARGO",{$toString:"$id"}]}, currentLocation: "$planes.currentLocation", heading:{$literal:0}, route: []}} asplanes = { $out: "planes"} db.cities.aggregate([firstN,second,unwind,format,asplanes])
 
-Running the Code
+# Running the Code
 
 open localhost:5000 to verify the Loaded UI & run the test harness to check delivered parcels. 
