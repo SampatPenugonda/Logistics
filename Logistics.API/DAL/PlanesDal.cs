@@ -25,7 +25,7 @@ namespace Logistics.API.DAL
         {
             _mongoDbClient = mongoClient;
             _mongoDatabase = mongoClient.GetDatabase(SharedConstants.Database);
-            var databaseWithWriteConcern = this._mongoDatabase.WithWriteConcern(WriteConcern.WMajority).WithReadConcern(ReadConcern.Majority);
+            var databaseWithWriteConcern = this._mongoDatabase.WithWriteConcern(WriteConcern.Acknowledged).WithReadPreference(ReadPreference.SecondaryPreferred);
             this.planesCollection = databaseWithWriteConcern.GetCollection<BsonDocument>(PlaneConstants.CollectionName);
             _logger = logger;
         }

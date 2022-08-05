@@ -1,4 +1,10 @@
 # Logistics
+**Latest Modifications**
+Removed the dependencies of POJO Classes at DAL Layer. 
+Improved the usage of constants across the solutions.
+Enhanced the exception handling throughout the application. 
+Maintained the Read/Write Preferences for collection[s]
+Added PlaneHistory through changeStream
 
 **Indexes**
 1. Created Indexes on Collections City & Plane for GeoSphere 2D columns. 
@@ -32,6 +38,6 @@ db.worldcities.aggregate([{ $match: { population: { $gt: '1000' } } }, { $sort: 
 
 first = { $sample: { size: 200} } second = { $group: { _id: null, planes : { $push : { currentLocation : "$position" }}}} unwind = { $unwind : {path: "$planes", includeArrayIndex: "id" }} format = {$project : { _id : {$concat : ["CARGO",{$toString:"$id"}]}, currentLocation: "$planes.currentLocation", heading:{$literal:0}, route: []}} asplanes = { $out: "planes"} db.cities.aggregate([firstN,second,unwind,format,asplanes])
 
-Running Code
+Running the Code
 
 open localhost:5000 to verify the Loaded UI & run the test harness to check delivered parcels. 

@@ -25,9 +25,9 @@ namespace Logistics.API.ChangeStream
         {
             _mongoDbClient = mongoClient;
             _mongoDatabase = this._mongoDbClient.GetDatabase(SharedConstants.Database);
-            cityCollection = this._mongoDatabase.GetCollection<BsonDocument>(CityConstants.CollectionName);
-            planeCollection = this._mongoDatabase.GetCollection<BsonDocument>(PlaneConstants.CollectionName);
-            planeHistoryCollection = this._mongoDatabase.GetCollection<BsonDocument>(planeHistoryConstants.collectionName);
+            cityCollection = this._mongoDatabase.GetCollection<BsonDocument>(CityConstants.CollectionName).WithWriteConcern(WriteConcern.Acknowledged).WithReadPreference(ReadPreference.SecondaryPreferred);
+            planeCollection = this._mongoDatabase.GetCollection<BsonDocument>(PlaneConstants.CollectionName).WithWriteConcern(WriteConcern.Acknowledged).WithReadPreference(ReadPreference.SecondaryPreferred);
+            planeHistoryCollection = this._mongoDatabase.GetCollection<BsonDocument>(planeHistoryConstants.collectionName).WithWriteConcern(WriteConcern.Acknowledged).WithReadPreference(ReadPreference.SecondaryPreferred);
 
             this._planesDAL = planesDal;
             this._cargoDAL = cargoDal;
@@ -149,16 +149,15 @@ namespace Logistics.API.ChangeStream
                 { planeHistoryConstants.Callsign, document.Callsign },
                 { planeHistoryConstants.LandedOn, DateTime.UtcNow },
                 { planeHistoryConstants.Landed , document.Landed },
-                { planeHistoryConstants.Heading , document.Heading }
+                { planeHistoryConstants.Heading , document.Heading },
+                { planeHistoryConstants.schemaVersion , planeHistoryConstants.schemaVersionValue },
 
             };
                 await planeHistoryCollection.InsertOneAsync(planehistory);
             }
             catch (MongoException mex)
             {
-
                 Console.WriteLine(mex);
-
             }
         }
 
