@@ -5,7 +5,9 @@
 2. Improved the usage of constants across the solutions.
 3. Enhanced the exception handling throughout the application. 
 4. Maintained the Read/Write Preferences for collection[s]
-5. Added PlaneHistory with schema version to handle collections  for multiple versions through changeStream
+5. Added PlaneHistory with schema version to handle collections  for multiple versions through changeStream.
+6. Made Dal Layer more independent by creating service layer. 
+7. Added Global Exception handling by using custom middleware.
 
 
 # Indexes
