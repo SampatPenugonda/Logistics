@@ -30,7 +30,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="wwwroot\" />
-    <Folder Include="DAL\" />
   </ItemGroup>
   <ItemGroup>
     <None Remove="MongoDB.Driver" />

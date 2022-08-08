@@ -1,13 +1,8 @@
 ﻿using Logistics.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Logistics.API
+namespace Logistics.API.Services.Interfaces
 {
-    public interface ICitiesDal
+    public interface ICities
     {
         Task<IEnumerable<City>> GetAll();
         Task<City> GetCityByName(string cityName);

@@ -1,4 +1,5 @@
 ﻿
+using Logistics.API.Services.Interfaces;
 using Logistics.Models;
 using Microsoft.AspNetCore.Mvc;
 
@@ -8,12 +9,12 @@ namespace Logistics.API.Controllers
     [ApiController]
     public class CitiesController : ControllerBase
     {
-        private readonly ICitiesDal _citiesDAL;
+        private readonly ICities _city;
         
         //private readonly ILogger logger;    
-        public CitiesController(ICitiesDal citiesDAL)
+        public CitiesController(ICities citiesService)
         {
-            this._citiesDAL = citiesDAL;
+            this._city = citiesService;
         }
         /// <summary>
         /// Fetches All Cities
@@ -24,12 +25,12 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var cities = await _citiesDAL.GetAll();
+                var cities = await _city.GetAll();
                 return new OkObjectResult(cities.ToList());
             }
             catch (Exception)
             {
-                return StatusCode(500, this._citiesDAL.GetLastError());
+                return StatusCode(500, this._city.GetLastError());
             }
         }
         /// <summary>
@@ -42,12 +43,12 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var results = await _citiesDAL.GetCityByName(name);
+                var results = await _city.GetCityByName(name);
                 return new OkObjectResult(results);
             }
             catch (Exception)
             {
-                return StatusCode(500, this._citiesDAL.GetLastError());
+                return StatusCode(500, this._city.GetLastError());
             }
         }
         /// <summary>
@@ -61,12 +62,12 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var results = await _citiesDAL.GetNeighbouringCities(name, count);
+                var results = await _city.GetNeighbouringCities(name, count);
                 return new OkObjectResult(new { neighbors = results });
             }
             catch (Exception)
             {
-                return StatusCode(500, this._citiesDAL.GetLastError());
+                return StatusCode(500, this._city.GetLastError());
             }
         }
 

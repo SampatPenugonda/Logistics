@@ -28,9 +28,9 @@ namespace Logistics.API.DAL
             citiesCollection = mongoDatabase.GetCollection<BsonDocument>(CityConstants.CollectionName).WithWriteConcern(WriteConcern.Acknowledged).WithReadPreference(ReadPreference.SecondaryPreferred);
             _logger = logger;
         }
-        public async Task<IEnumerable<City>> GetAll()
+        public async Task<IEnumerable<BsonDocument>> GetAll()
         {
-            var cities = new ConcurrentBag<City>();
+            var cityDtosDocs = new List<BsonDocument>();
             try
             {
                 var sort = Builders<BsonDocument>.Sort.Ascending(CityConstants.UnderScoreId);
@@ -41,24 +41,17 @@ namespace Logistics.API.DAL
                 };
                 // Will use _id index
                 var cityDtosCursor = await citiesCollection.FindAsync(new BsonDocument(), findOptions);
-                var cityDtos = cityDtosCursor.ToList();
-
-                // Parallelizing the serialization to make it faster.
-                Parallel.ForEach(cityDtos, cityDto =>
-                {
-                    var cityModel = BsonSerializer.Deserialize<City>(cityDto);
-                    cities.Add(cityModel);
-                });
+                 cityDtosDocs = cityDtosCursor.ToList();
+                
             }
             catch(MongoException mex)
             {
                 _logger.LogError($"Failed to fetch the cities Exception: {mex.ToString()}");
             }
-
-            return cities.ToList();
+            return cityDtosDocs;
         }
 
-        public async Task<City> GetCityByName(string cityName)
+        public async Task<BsonDocument> GetCityByName(string cityName)
         {
             var filter = new BsonDocument();
 
@@ -70,7 +63,7 @@ namespace Logistics.API.DAL
                 var cities = cursor.ToList();
                 if (cities.Any())
                 {
-                    var cityModel = BsonSerializer.Deserialize<City>(cities.FirstOrDefault());
+                    var cityModel = cities.FirstOrDefault();
                     return cityModel;
                 }
 
@@ -84,9 +77,9 @@ namespace Logistics.API.DAL
             return null;
         }
 
-        public async Task<List<City>> GetNeighbouringCities(string cityName, long count)
+        public async Task<List<BsonDocument>> GetNeighbouringCities(string cityName, long count)
         {
-            List<City> neighBourCities = new List<City>();
+            List<BsonDocument> neighBourCities = new List<BsonDocument>();
             try
             {
                 var filter = Builders<BsonDocument>.Filter.Eq(SharedConstants.UnderScoreId, cityName);
@@ -100,14 +93,7 @@ namespace Logistics.API.DAL
                     var nearFilter = Builders<BsonDocument>.Filter.Near(CityConstants.location, point, 100000000000, 0);
                     var nearbyCities = await this.citiesCollection.Find(nearFilter).ToListAsync();
 
-                    var selectedCities = nearbyCities.Take((int)count).ToList();
-
-                    foreach (var cityDto in selectedCities)
-                    {
-                        var cityModel = BsonSerializer.Deserialize<City>(cityDto);
-                        cityModel.Location = new double[] { cityModel.Location[0], cityModel.Location[1] };
-                        neighBourCities.Add(cityModel);
-                    }
+                    neighBourCities = nearbyCities.Take((int)count).ToList();
                 }
                 return neighBourCities;
             }
@@ -121,6 +107,11 @@ namespace Logistics.API.DAL
         public string GetLastError()
         {
             return lastError;
+        }
+        private void processException(MongoException ex, string message)
+        {
+            lastError = $"{message} {ex.ToString()}";
+            _logger.LogError(lastError);
         }
         private City FetchCity(BsonDocument planeDto)
         {

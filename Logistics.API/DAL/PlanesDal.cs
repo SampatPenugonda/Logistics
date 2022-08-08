@@ -30,7 +30,7 @@ namespace Logistics.API.DAL
             _logger = logger;
         }
 
-        public async Task<Plane> GetPlane(string callSign)
+        public async Task<BsonDocument> GetPlane(string callSign)
         {
             var filter = new BsonDocument();
             filter[SharedConstants.UnderScoreId] = callSign;
@@ -42,26 +42,25 @@ namespace Logistics.API.DAL
                     project = project.Include(planeField);
                 }
                 // Will use _id index
-                var planes = await planesCollection.Find(filter).Project(project).ToListAsync();
-                if (planes.Any())
+                var plane = await planesCollection.Find(filter).Project(project).ToListAsync();
+                if (plane.Any())
                 {
-                    var planeModel = this.FetchPlane(planes.FirstOrDefault());
-                    return planeModel;
+                    return plane.FirstOrDefault();
                 }
 
             }
             catch (MongoException ex)
             {
-                lastError = $"Failed to fetch the plane by id: {callSign} Exception: {ex.ToString()}";
+                this.processException(ex, $"Failed to fetch the plane by id: {callSign} Exception: ");
                 _logger.LogError(lastError);
             }
 
             return null;
         }
 
-        public async Task<IEnumerable<Plane>> GetPlanes()
+        public async Task<List<BsonDocument>> GetPlanes()
         {
-            var planes = new ConcurrentBag<Plane>();
+            var planeDtosCursor = new List<BsonDocument>();
             try
             {
                 var project = Builders<BsonDocument>.Projection.Include(SharedConstants.UnderScoreId);
@@ -69,28 +68,20 @@ namespace Logistics.API.DAL
                 {
                     project = project.Include(planeField);
                 }
-                var planeDtosCursor = await planesCollection.Find(new BsonDocument()).Project(project).ToListAsync();
-
-
-                // Parallelizing the serialization to make it faster.
-                Parallel.ForEach(planeDtosCursor, planeDto =>
-                {
-                    var planeModel = this.FetchPlane(planeDto);
-                    planes.Add(planeModel);
-                });
+                 planeDtosCursor = await planesCollection.Find(new BsonDocument()).Project(project).ToListAsync();
             }
             catch (MongoException mex)
             {
-                lastError = $"Failed to fetch the planes Exception: {mex.ToString()}";
+                this.processException(mex,$"Failed to fetch the planes Exception: ");
                 _logger.LogError(lastError);
             }
 
-            return planes.ToList();
+            return planeDtosCursor;
         }
 
 
 
-        public async Task<Plane> MovePlaneLocation(string id, string location, int heading)
+        public async Task<BsonDocument> MovePlaneLocation(string id, string location, int heading)
         {
             // var point = new GeoJson2DCoordinates(double.Parse(location.Split(',')[0]), double.Parse(location.Split(',')[1]));
             try
@@ -139,13 +130,11 @@ namespace Logistics.API.DAL
 
                     isTimeSet = true;
                 }
-                var result = await planesCollection.FindOneAndUpdateAsync(filter, update);
-                return this.FetchPlane(result);
+                return await planesCollection.FindOneAndUpdateAsync(filter, update);
             }
             catch (MongoException mex)
             {
-                lastError = $"Failed to move the planes Exception: {mex.ToString()}";
-                _logger.LogError(lastError);
+                this.processException(mex, $"Failed to move the planes Exception: ");
             }
             return null;
             
@@ -190,7 +179,7 @@ namespace Logistics.API.DAL
             }
             catch (MongoException mex)
             {
-                lastError = $"Failed to fetch the calculate distance using geoNear Exception: {mex.ToString()}";
+                this.processException(mex,$"Failed to fetch the calculate distance using geoNear Exception: ");
                 _logger.LogError(lastError);
                 return 0;
             }
@@ -221,8 +210,7 @@ namespace Logistics.API.DAL
             }
             catch (MongoException ex)
             {
-                lastError = $"Failed to add plane route : {city} for the plane: {id}.Exception: {ex.ToString()}";
-                //this.logger.LogError(lastError);
+                this.processException(ex,$"Failed to add plane route : {city} for the plane: {id}.Exception:");
                 result = false;
             }
             return result;
@@ -246,8 +234,7 @@ namespace Logistics.API.DAL
             }
             catch (MongoException ex)
             {
-                lastError = $"Failed to replace plane route : {city} for the plane: {id}.Exception: {ex.ToString()}";
-                // this.logger.LogError(lastError);
+                this.processException(ex,$"Failed to replace plane route : {city} for the plane: {id}.Exception:");
                 result = false;
             }
             return result;
@@ -281,14 +268,13 @@ namespace Logistics.API.DAL
             }
             catch (MongoException ex)
             {
-                lastError = $"Failed to remove the first route  for the plane: {id}.Exception: {ex.ToString()}";
-                _logger.LogError(lastError);
+                this.processException(ex, $"Failed to remove the first route  for the plane: {id}.Exception");
                 result = false;
             }
             return result;
         }
 
-        public async Task<Plane> UpdateLandPlaneLocation(string id, string location, int heading, string city)
+        public async Task<BsonDocument> UpdateLandPlaneLocation(string id, string location, int heading, string city)
         {
             try
             {
@@ -309,17 +295,18 @@ namespace Logistics.API.DAL
                    .Set(PlaneConstants.Heading, heading)
                    .Set(PlaneConstants.MaintainenceRequired, maintenanceRequired)
                    .Set(PlaneConstants.travelledInSeconds, totalSecond);
-                var result = await planesCollection.FindOneAndUpdateAsync(filter, update);
+                return await planesCollection.FindOneAndUpdateAsync(filter, update);
 
-                return this.FetchPlane(result);
+                
             }
             catch (MongoException mex)
             {
-                lastError = $"Failed to remove the first route  for the plane: {id}.Exception: {mex.ToString()}";
+                this.processException(mex,$"Failed to remove the first route  for the plane: {id}.Exception");
                 _logger.LogError(lastError);
                 throw;
             }
         }
+
         private Plane FetchPlane(BsonDocument planeDto)
         {
             try
@@ -330,11 +317,18 @@ namespace Logistics.API.DAL
             }
             catch (Exception ex)
             {
-                lastError = $"Failed to fetch Plane data from bson document {ex.ToString()}";
+                lastError = $"Failed to serialize the bsondocument {ex.ToString()}";
                 _logger.LogError(lastError);
             }
             return null;
         }
+
+        private void processException(MongoException ex, string message)
+        {
+            lastError = $"{message} {ex.ToString()}";
+            _logger.LogError(lastError);
+        }
+
     }
 
 

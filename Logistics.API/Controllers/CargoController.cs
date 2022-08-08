@@ -1,4 +1,5 @@
-﻿using Logistics.Models;
+﻿using Logistics.API.Services.Interfaces;
+using Logistics.Models;
 using Logistics.Utills;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -11,18 +12,11 @@ namespace Logistics.API.Controllers
     [ApiController]
     public class CargoController : ControllerBase
     {
-        private readonly ICargoDal _cargoDAL;
-        private readonly ICitiesDal _citiesDAL;
-
-        private readonly IPlanesDal _planesDAL;
-        private readonly IMongoDatabase _database;
-
-        public CargoController(ICargoDal cargoDAL, IPlanesDal planesDAL, ICitiesDal citiesDAL, IMongoClient client)
+        private readonly ICargo _cargo;
+        
+        public CargoController(ICargo cargo, IPlanes planes, ICitiesDal citiesDAL, IMongoClient client)
         {
-            this._cargoDAL = cargoDAL;
-            this._citiesDAL = citiesDAL;
-            this._planesDAL = planesDAL;
-            _database = client.GetDatabase("logistics");
+            this._cargo = cargo;
         }
 
         /// <summary>
@@ -36,12 +30,12 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var result = await _cargoDAL.AddCargo(location, destination);
+                var result = await _cargo.AddCargo(location, destination);
                 return new OkObjectResult(result);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return StatusCode(500, this._cargoDAL.GetLastError());
+                return StatusCode(500, this._cargo.GetLastError());
             }
         }
         /// <summary>
@@ -54,7 +48,7 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var cargo = await _cargoDAL.UpdateCargo(id);
+                var cargo = await _cargo.UpdateCargo(id);
                 return cargo;
             }
             catch(Exception)
@@ -74,12 +68,12 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var result = await _cargoDAL.UpdateCargo(id, callsign);
+                var result = await _cargo.UpdateCargo(id, callsign);
                 return new OkObjectResult(result);
             }
             catch (Exception)
             {
-                return StatusCode(500, this._cargoDAL.GetLastError());
+                return StatusCode(500, this._cargo.GetLastError());
             }
         }
 
@@ -93,12 +87,12 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var result = await _cargoDAL.UnloadCargo(id);
+                var result = await _cargo.UnloadCargo(id);
                 return new OkObjectResult(result);
             }
             catch (Exception)
             {
-                return StatusCode(500, this._cargoDAL.GetLastError());
+                return StatusCode(500, this._cargo.GetLastError());
             }
         }
         /// <summary>
@@ -112,12 +106,12 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var result = await _cargoDAL.UpdateCargoLocation(id, location);
+                var result = await _cargo.UpdateCargoLocation(id, location);
                 return new OkObjectResult(result);
             }
             catch (Exception)
             {
-                return StatusCode(500, this._cargoDAL.GetLastError());
+                return StatusCode(500, this._cargo.GetLastError());
             }
         }
         /// <summary>
@@ -130,12 +124,12 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var result = await _cargoDAL.GetCargos(location);
+                var result = await _cargo.GetCargos(location);
                 return new OkObjectResult(result);
             }
             catch (Exception)
             {
-                return StatusCode(500, this._cargoDAL.GetLastError());
+                return StatusCode(500, this._cargo.GetLastError());
             }
         }
     }

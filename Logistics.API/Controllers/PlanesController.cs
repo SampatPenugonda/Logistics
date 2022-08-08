@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Http;
+﻿using Logistics.API.Services.Interfaces;
+using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Logistics.API.Controllers
@@ -7,13 +8,13 @@ namespace Logistics.API.Controllers
     [ApiController]
     public class PlanesController : ControllerBase
     {
-        private readonly IPlanesDal _planeDAL;
+        private readonly IPlanes _plane;
         private readonly ICitiesDal _citiesDAL;
         //
         //private readonly ILogger logger;    
-        public PlanesController(IPlanesDal planeDal, ICitiesDal citiesDAL)
+        public PlanesController(IPlanes plane, ICitiesDal citiesDAL)
         {
-            this._planeDAL = planeDal;
+            this._plane = plane;
             this._citiesDAL = citiesDAL;
         }
 
@@ -26,7 +27,7 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var planes = await _planeDAL.GetPlanes();
+                var planes = await _plane.GetPlanes();
                 if (planes.ToList().Count > 0)
                 {
                     return new OkObjectResult(planes);
@@ -39,7 +40,7 @@ namespace Logistics.API.Controllers
             catch (Exception)
             {
 
-                return StatusCode(500, this._planeDAL.GetLastError());
+                return StatusCode(500, this._plane.GetLastError());
             }
         }
         /// <summary>
@@ -52,13 +53,12 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var plane = await _planeDAL.GetPlane(callsign);
+                var plane = await _plane.GetPlane(callsign);
                 return plane != null ? new OkObjectResult(plane) : StatusCode(404);
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-
-                return StatusCode(500, this._planeDAL.GetLastError());
+                return StatusCode(500, this._plane.GetLastError());
             }
         }
 
@@ -74,17 +74,17 @@ namespace Logistics.API.Controllers
         {
             try
             {
-                var result = await _planeDAL.MovePlaneLocation(id, location, heading);
+                var result = await _plane.MovePlaneLocation(id, location, heading);
                 if (result == null)
                 {
-                    return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                    return new BadRequestObjectResult(this._plane.GetLastError());
                 }
                 return new JsonResult(result);
             }
             catch (Exception)
             {
 
-                return StatusCode(500, this._planeDAL.GetLastError());
+                return StatusCode(500, this._plane.GetLastError());
             }
 
         }
@@ -116,16 +116,16 @@ namespace Logistics.API.Controllers
                     return new BadRequestObjectResult("Found invalid city");
                 }
 
-                var result = await _planeDAL.UpdateLandPlaneLocation(id, location, heading, city);
+                var result = await _plane.UpdateLandPlaneLocation(id, location, heading, city);
                 if (result == null)
                 {
-                    return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                    return new BadRequestObjectResult(this._plane.GetLastError());
                 }
                 return new JsonResult(result);
             }
             catch (Exception)
             {
-                return StatusCode(500, this._planeDAL.GetLastError());
+                return StatusCode(500, this._plane.GetLastError());
             }
         }
 
@@ -140,16 +140,16 @@ namespace Logistics.API.Controllers
                     return new BadRequestObjectResult("Found invalid city");
                 }
 
-                var result = await this._planeDAL.AddDestination(id, city);
+                var result = await this._plane.AddDestination(id, city);
                 if (!result)
                 {
-                    return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                    return new BadRequestObjectResult(this._plane.GetLastError());
                 }
                 return new JsonResult(result);
             }
             catch (Exception)
             {
-                return StatusCode(500, this._planeDAL.GetLastError());
+                return StatusCode(500, this._plane.GetLastError());
             }
 
         }
@@ -170,7 +170,7 @@ namespace Logistics.API.Controllers
                     return new BadRequestObjectResult("Found invalid city");
                 }
 
-                var result = await this._planeDAL.UpdateDestination(id, city);
+                var result = await this._plane.UpdateDestination(id, city);
                 if (!result)
                 {
                     return new BadRequestObjectResult(this._citiesDAL.GetLastError());
@@ -180,7 +180,7 @@ namespace Logistics.API.Controllers
             }
             catch (Exception)
             {
-                return StatusCode(500, this._planeDAL.GetLastError());
+                return StatusCode(500, this._plane.GetLastError());
             }
 
         }
@@ -195,17 +195,17 @@ namespace Logistics.API.Controllers
             try
 
             {
-                var result = await this._planeDAL.RemoveDestination(id);
+                var result = await this._plane.RemoveDestination(id);
                 if (!result)
                 {
-                    return new BadRequestObjectResult(this._planeDAL.GetLastError());
+                    return new BadRequestObjectResult(this._plane.GetLastError());
                 }
                 return new JsonResult(result);
             }
 
             catch (Exception)
             {
-                return StatusCode(500, this._planeDAL.GetLastError());
+                return StatusCode(500, this._plane.GetLastError());
             }
         }
 

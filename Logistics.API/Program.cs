@@ -3,6 +3,9 @@ using Logistics.API;
 using Logistics.API.ChangeStream;
 using Logistics.API.ConfigureIndexes;
 using Logistics.API.DAL;
+using Logistics.API.Services;
+using Logistics.API.Services.Interfaces;
+using Logistics.Models;
 using MongoDB.Driver;
 
 IConfiguration configuration = new ConfigurationBuilder()
@@ -19,7 +22,10 @@ var mongoClient = new MongoClient(configuration["MongoDb-Connection-String"]);
 builder.Services.AddSingleton<IMongoClient>(x => { return mongoClient; });
 // Services Injection
 builder.Services.AddSingleton<ICitiesDal, CitiesDal>();
+builder.Services.AddSingleton<ICities, CityService>();
 builder.Services.AddSingleton<IPlanesDal, PlanesDal>();
+builder.Services.AddSingleton<IPlanes, PlaneService>();
+builder.Services.AddSingleton<ICargo, CargoService>();
 builder.Services.AddSingleton<ICargoDal,CargoDal>();
 builder.Services.AddSingleton<ChangeStream, ChangeStream>();
 // Configuration Injection

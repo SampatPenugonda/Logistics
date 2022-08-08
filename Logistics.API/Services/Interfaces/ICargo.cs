@@ -1,13 +1,8 @@
 ﻿using Logistics.Models;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
-namespace Logistics.API
+namespace Logistics.API.Services.Interfaces
 {
-    public interface ICargoDal
+    public interface ICargo
     {
         Task<Cargo> AddCargo(string location, string destination);
         Task<bool> UpdateCargo(string id);
